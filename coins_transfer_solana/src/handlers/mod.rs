@@ -1,0 +1,9 @@
+pub mod coins;
+pub mod configs;
+pub mod conversion_rates;
+pub mod deposits;
+pub mod health;
+pub mod notify_webhooks;
+pub mod users;
+pub mod wallets;
+pub mod withdrawals;

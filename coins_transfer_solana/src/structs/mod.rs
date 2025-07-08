@@ -1,0 +1,13 @@
+pub mod admins_api;
+pub mod coin_clients;
+pub mod coins;
+pub mod configs;
+pub mod conversion_rates;
+pub mod deposits;
+pub mod history;
+pub mod invoices;
+pub mod notify_payment;
+pub mod request_validation;
+pub mod users;
+pub mod wallets;
+pub mod withdrawals;

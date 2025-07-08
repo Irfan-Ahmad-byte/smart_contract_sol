@@ -1,0 +1,23 @@
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /home/ubuntu/ebp_coins_module
+hooks:
+  BeforeInstall:
+    - location: deployment_scripts/before_install.sh
+      timeout: 300
+      runas: root
+  AfterInstall:
+    - location: deployment_scripts/after_install.sh
+      timeout: 300
+      runas: root
+  ApplicationStart:
+    - location: deployment_scripts/start_application.sh
+      timeout: 300
+      runas: root
+
+  ValidateService:
+    - location: deployment_scripts/validate_service.sh
+      timeout: 300
+      runas: root

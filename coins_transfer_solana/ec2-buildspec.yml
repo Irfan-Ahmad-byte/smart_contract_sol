@@ -1,0 +1,72 @@
+version: 0.2
+
+phases:
+  pre_build:
+    commands:
+      - echo "Installing Rust..."
+      - curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+      - ls "$HOME/.cargo"
+      - chmod +x $HOME/.cargo/env
+      - . "$HOME/.cargo/env"
+      - cargo install sqlx-cli
+
+  build:
+    commands:
+      - echo "Building Rust project..."
+      - cargo build --release
+      - cd migration && cargo build --release
+      - cp -r migrations target/release/
+
+  post_build:
+    commands:
+      - echo "Running post-build steps..."
+      - echo "Creating .env file in target/release..."
+      - ls .
+      - ls target
+      - echo "Building Rust project..."
+      - echo SERVER_HOST=$SERVER_HOST > target/release/.env
+      - echo SERVER_PORT=$SERVER_PORT >> target/release/.env
+      - echo DATABASE_URL=$DATABASE_URL >> target/release/.env
+      - echo RATE_LIMIT_PER_MINUTE_ALLOWED=$RATE_LIMIT_PER_MINUTE_ALLOWED >> target/release/.env
+      - echo RATE_LIMIT_PER_SECOND_ALLOWED=$RATE_LIMIT_PER_SECOND_ALLOWED >> target/release/.env
+      - echo RATE_LIMIT_PER_MINUTE_UNKNOWN=$RATE_LIMIT_PER_MINUTE_UNKNOWN >> target/release/.env
+      - echo RATE_LIMIT_PER_SECOND_UNKNOWN=$RATE_LIMIT_PER_SECOND_UNKNOWN >> target/release/.env
+      - echo MAX_CONNECTIONS_LIMIT=$MAX_CONNECTIONS_LIMIT >> target/release/.env
+      - echo MIN_CONNECTIONS_LIMIT=$MIN_CONNECTIONS_LIMIT >> target/release/.env
+      - echo MAX_CONNECTIONS=$MAX_CONNECTIONS >> target/release/.env
+      - echo MIN_CONNECTIONS=$MIN_CONNECTIONS >> target/release/.env
+      - echo CONNECT_TIMEOUT=$CONNECT_TIMEOUT >> target/release/.env
+      - echo ACQUIRE_TIMEOUT=$ACQUIRE_TIMEOUT >> target/release/.env
+      - echo IDLE_TIMEOUT=$IDLE_TIMEOUT >> target/release/.env
+      - echo MAX_LIFETIME=$MAX_LIFETIME >> target/release/.env
+      - echo REDIS_URL=$REDIS_URL >> target/release/.env
+      - echo REDIS_ENABLED=$REDIS_ENABLED >> target/release/.env
+      - echo AWS_REGION=$AWS_REGION >> target/release/.env
+      - echo CLOUDWATCH_AWS_ACCESS_KEY=$CLOUDWATCH_AWS_ACCESS_KEY >> target/release/.env
+      - echo CLOUDWATCH_AWS_SECRET_KEY=$CLOUDWATCH_AWS_SECRET_KEY >> target/release/.env
+      - echo CLOUDWATCH_AWS_REGION=$CLOUDWATCH_AWS_REGION >> target/release/.env
+      - echo LOG_TO_CLOUDWATCH=$LOG_TO_CLOUDWATCH >> target/release/.env
+      - echo AWS_LOG_GROUP=$AWS_LOG_GROUP >> target/release/.env
+      - echo ACCESS_TOKEN=$ACCESS_TOKEN >> target/release/.env
+      - echo LITECOIN_RPC_URL=$LITECOIN_RPC_URL >> target/release/.env
+      - echo LITECOIN_RPC_USER=$LITECOIN_RPC_USER >> target/release/.env
+      - echo LITECOIN_RPC_PASSWORD=$LITECOIN_RPC_PASSWORD >> target/release/.env
+      - echo COIN_MARKET_CAP_API_KEY=$COIN_MARKET_CAP_API_KEY >> target/release/.env
+      - echo COIN_MARKET_CAP_BASE_URL=$COIN_MARKET_CAP_BASE_URL >> target/release/.env
+      - echo RATE_UPDATE_INTERVAL_IN_SECONDS=$RATE_UPDATE_INTERVAL_IN_SECONDS >> target/release/.env
+      - echo INVOICE_EXPIRY_TIME=$INVOICE_EXPIRY_TIME >> target/release/.env
+      - mv ec2-appspec.yml appspec.yml
+      - chmod +x deployment_scripts/*.sh
+
+artifacts:
+  files:
+    - target/release/*
+    - appspec.yml
+    - ec2-service.service
+    - deployment_scripts/*
+
+cache:
+  paths:
+    - '/root/.cargo/registry/**/*'
+    - '/root/.cargo/git/**/*'
+    - 'target/**/*'

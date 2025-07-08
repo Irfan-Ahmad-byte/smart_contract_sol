@@ -1,0 +1,189 @@
+name: Coins Module Deployment
+
+on:
+  push:
+    branches: ["development"]
+  pull_request:
+    branches: ["staging"]
+    types: [closed]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    environment: ${{ github.ref_name }}
+    steps:
+      - name: Get Runner Public IP Address
+        uses: candidob/get-runner-ip@v1.0.0
+        id: ip
+
+      - uses: actions/checkout@v4
+
+      # AWS commands commented out as per previous changes
+      # - name: Add Github Actions IP to Security group
+      #   run: |
+      #     aws configure set aws_access_key_id ${{ secrets.IP_AWS_ACCESS_KEY_ID || vars.IP_AWS_ACCESS_KEY_ID }}
+      #     aws configure set aws_secret_access_key  ${{ secrets.IP_AWS_SECRET_ACCESS_KEY || vars.IP_AWS_SECRET_ACCESS_KEY }}
+      #     aws ec2 authorize-security-group-ingress --group-id ${{ secrets.AWS_SG_ID || vars.AWS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+      #   env:
+      #     AWS_REGION: ${{ secrets.AWS_REGION || vars.AWS_REGION }}
+
+      - name: Create remote directory if it doesn't exist
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          port: 2222
+          script_stop: true
+          script: |
+            mkdir -p $HOME/ebp/${{ github.ref_name }}/${{ github.event.repository.name }}
+
+      - name: Archive code into zip
+        run: |
+          zip -r code.zip . -x "target/*"
+
+      - name: Upload zip file to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          source: "code.zip"
+          target: "$HOME/ebp/${{ github.ref_name }}/${{ github.event.repository.name }}/"
+          port: 2222
+
+      - name: Deploy code on Server
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          command_timeout: 15m
+          port: 2222
+          script: |
+            cd $HOME/ebp/${{ github.ref_name }}/${{ github.event.repository.name }}
+            # Enable extended globbing
+            shopt -s extglob
+            # Delete all files except 'target', and 'code.zip'
+            rm -rf -- !(target|code.zip)
+            # Unzip the code
+            unzip code.zip
+            # Remove the zip file
+            rm code.zip
+
+      - name: Make env
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          command_timeout: 15m
+          port: 2222
+          script_stop: true
+          script: |
+            cd $HOME/ebp/${{ github.ref_name }}/${{ github.event.repository.name }}
+            rm -f .env
+            # Server & Database
+            echo SERVER_HOST=${{ secrets.SERVER_HOST || vars.SERVER_HOST }} >> .env
+            echo SERVER_PORT=${{ secrets.SERVER_PORT || vars.SERVER_PORT }} >> .env
+            echo DATABASE_URL=${{ secrets.DATABASE_URL || vars.DATABASE_URL }} >> .env
+            echo MAX_CONNECTIONS_LIMIT=${{ secrets.MAX_CONNECTIONS_LIMIT || vars.MAX_CONNECTIONS_LIMIT }} >> .env
+            echo MIN_CONNECTIONS_LIMIT=${{ secrets.MIN_CONNECTIONS_LIMIT || vars.MIN_CONNECTIONS_LIMIT }} >> .env
+            echo MAX_CONNECTIONS=${{ secrets.MAX_CONNECTIONS || vars.MAX_CONNECTIONS }} >> .env
+            echo MIN_CONNECTIONS=${{ secrets.MIN_CONNECTIONS || vars.MIN_CONNECTIONS }} >> .env
+            echo CONNECT_TIMEOUT=${{ secrets.CONNECT_TIMEOUT || vars.CONNECT_TIMEOUT }} >> .env
+            echo ACQUIRE_TIMEOUT=${{ secrets.ACQUIRE_TIMEOUT || vars.ACQUIRE_TIMEOUT }} >> .env
+            echo IDLE_TIMEOUT=${{ secrets.IDLE_TIMEOUT || vars.IDLE_TIMEOUT }} >> .env
+            echo MAX_LIFETIME=${{ secrets.MAX_LIFETIME || vars.MAX_LIFETIME }} >> .env
+            echo ALLOWED_IPS=${{ secrets.ALLOWED_IPS || vars.ALLOWED_IPS }} >> .env
+            
+            # Rate Limits
+            echo RATE_LIMIT_PER_MINUTE_ALLOWED=${{ secrets.RATE_LIMIT_PER_MINUTE_ALLOWED || vars.RATE_LIMIT_PER_MINUTE_ALLOWED }} >> .env
+            echo RATE_LIMIT_PER_SECOND_ALLOWED=${{ secrets.RATE_LIMIT_PER_SECOND_ALLOWED || vars.RATE_LIMIT_PER_SECOND_ALLOWED }} >> .env
+            echo RATE_LIMIT_PER_MINUTE_UNKNOWN=${{ secrets.RATE_LIMIT_PER_MINUTE_UNKNOWN || vars.RATE_LIMIT_PER_MINUTE_UNKNOWN }} >> .env
+            echo RATE_LIMIT_PER_SECOND_UNKNOWN=${{ secrets.RATE_LIMIT_PER_SECOND_UNKNOWN || vars.RATE_LIMIT_PER_SECOND_UNKNOWN }} >> .env
+            
+            # AWS & Cloudwatch
+            echo AWS_REGION=${{ secrets.AWS_REGION || vars.AWS_REGION }} >> .env
+            echo CLOUDWATCH_AWS_REGION=${{ secrets.CLOUDWATCH_AWS_REGION || vars.CLOUDWATCH_AWS_REGION }} >> .env
+            echo AWS_LOG_GROUP=${{ secrets.AWS_LOG_GROUP || vars.AWS_LOG_GROUP }} >> .env
+            echo LOG_TO_CLOUDWATCH=${{ secrets.LOG_TO_CLOUDWATCH || vars.LOG_TO_CLOUDWATCH }} >> .env
+            echo CLOUDWATCH_AWS_ACCESS_KEY=${{ secrets.CLOUDWATCH_AWS_ACCESS_KEY || vars.CLOUDWATCH_AWS_ACCESS_KEY }} >> .env
+            echo CLOUDWATCH_AWS_SECRET_KEY=${{ secrets.CLOUDWATCH_AWS_SECRET_KEY || vars.CLOUDWATCH_AWS_SECRET_KEY }} >> .env
+            
+            # Logging
+            echo RUST_LOG=${{ secrets.RUST_LOG || vars.RUST_LOG }} >> .env
+            
+            # Redis
+            echo REDIS_ENABLED=${{ secrets.REDIS_ENABLED || vars.REDIS_ENABLED }} >> .env
+            echo REDIS_URL=${{ secrets.REDIS_URL || vars.REDIS_URL }} >> .env
+            echo REDIS_PREFIX=${{ secrets.REDIS_PREFIX || vars.REDIS_PREFIX }} >> .env
+            
+            #Module Config
+            echo ACCESS_TOKEN=${{ secrets.ACCESS_TOKEN || vars.ACCESS_TOKEN }} >> .env
+            echo LITECOIN_RPC_URL=${{ secrets.LITECOIN_RPC_URL || vars.LITECOIN_RPC_URL }} >> .env
+            echo LITECOIN_RPC_USER=${{ secrets.LITECOIN_RPC_USER || vars.LITECOIN_RPC_USER }} >> .env
+            echo LITECOIN_RPC_PASSWORD=${{ secrets.LITECOIN_RPC_PASSWORD || vars.LITECOIN_RPC_PASSWORD }} >> .env
+            echo COIN_MARKET_CAP_API_KEY=${{ secrets.COIN_MARKET_CAP_API_KEY || vars.COIN_MARKET_CAP_API_KEY }} >> .env
+            echo COIN_MARKET_CAP_BASE_URL=${{ secrets.COIN_MARKET_CAP_BASE_URL || vars.COIN_MARKET_CAP_BASE_URL }} >> .env
+            echo RATE_UPDATE_INTERVAL_IN_SECONDS=${{ secrets.RATE_UPDATE_INTERVAL_IN_SECONDS || vars.RATE_UPDATE_INTERVAL_IN_SECONDS }} >> .env
+            echo INVOICE_EXPIRY_TIME=${{ secrets.INVOICE_EXPIRY_TIME || vars.INVOICE_EXPIRY_TIME }} >> .env
+
+      - name: Run migrations
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          command_timeout: 15m
+          port: 2222
+          script_stop: true
+          script: |
+            cd $HOME/ebp/${{ github.ref_name }}/${{ github.event.repository.name }}
+            $HOME/.cargo/bin/sqlx migrate run
+
+      - name: Build on Server and Copy .env
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          command_timeout: 15m
+          port: 2222
+          script_stop: true
+          script: |
+            sudo systemctl stop ${{ github.event.repository.name }}_${{ github.ref_name }}
+            cd $HOME/ebp/${{ github.ref_name }}/${{ github.event.repository.name }}
+            $HOME/.cargo/bin/cargo build --release
+            cp .env target/release/
+
+      - name: Run Server
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_SERVER_IP || vars.SSH_SERVER_IP }}
+          username: ${{ secrets.SSH_SERVER_USER || vars.SSH_SERVER_USER }}
+          # key: ${{ secrets.SSH_KEY || vars.SSH_KEY }}
+          password: ${{ secrets.SSH_PASSWORD || vars.SSH_PASSWORD }}
+          command_timeout: 15m
+          port: 2222
+          script_stop: true
+          script: |
+            sudo systemctl daemon-reload
+            sudo systemctl enable ${{ github.event.repository.name }}_${{ github.ref_name }}
+            sudo systemctl start ${{ github.event.repository.name }}_${{ github.ref_name }}
+
+      # - name: Remove Github Actions IP from security group
+      #   run: |
+      #     aws ec2 revoke-security-group-ingress --group-id ${{ secrets.AWS_SG_ID || vars.AWS_SG_ID }} --protocol tcp --port 22 --cidr ${{ steps.ip.outputs.ipv4 }}/32
+      #   env:
+      #     AWS_REGION: ${{ secrets.AWS_REGION || vars.AWS_REGION }}
+      #   if: always()

@@ -1,0 +1,13 @@
+[Unit]
+Description=Run EBP Coins Module
+After=network.target
+
+[Service]
+WorkingDirectory=/home/ubuntu/ebp--coins_module/target/release
+EnvironmentFile=/home/ubuntu/ebp--coins_module/target/release/.env
+ExecStart=/home/ubuntu/ebp--coins_module/target/release/ebp--coins_module
+User=root
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

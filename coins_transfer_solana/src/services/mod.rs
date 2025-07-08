@@ -1,0 +1,10 @@
+pub mod coins;
+pub mod configs;
+pub mod conversion_rates;
+pub mod deposits;
+pub mod notifications;
+pub mod rpc_client;
+pub mod users;
+pub mod wallets;
+pub mod withdrawals;
+pub mod solana_client;
