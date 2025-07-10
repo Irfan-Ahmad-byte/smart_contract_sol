@@ -98,7 +98,7 @@ Feel free to reach out for feedback, contributions, or questions!
 
 - GitHub: github.com/Irfan-Ahmad-byte
 
-- LinkedIn: linkedin.com/in/irfanahmad-com
+- Upwork: https://www.upwork.com/freelancers/~01c796af13a5cc653f
 
 
 ## 📜 License
