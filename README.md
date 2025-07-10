@@ -140,6 +140,6 @@ Each sub-crate is MIT-licensed. See individual `LICENSE` files for details.
 
 - Feel free to open issues or PRs on this repo  
 - Maintainer: Irfan Ahmad (github.com/Irfan-Ahmad-byte)  
-- For questions, reach out on LinkedIn: linkedin.com/in/irfanahmad-com  
+- For Assistance, reach out on Upwork: https://www.upwork.com/freelancers/~01c796af13a5cc653f  
 
 Happy coding! 🚀
