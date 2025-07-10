@@ -109,4 +109,4 @@ All errors are reported via `anyhow::Error` with context. The client will exit w
 
 ## License
 
-MIT License. See [LICENSE](../LICENSE) for details.
+MIT License.
